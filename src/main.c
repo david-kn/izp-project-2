@@ -1,54 +1,58 @@
-#include <stdio.h>	// I/O
-#include <stdlib.h>	// EXIT_SUCCESS/FAILURE
-#include <string.h>	// kv˘li strcmp();
-#include <ctype.h>	// kv˘li isspace();
-#include <math.h>		//pro konstanty NAN a INFINITY
-#include <float.h>	// nezbytnÈ pro DBL_DIG
+#include <stdio.h>  // I/O
+#include <stdlib.h> // EXIT_SUCCESS/FAILURE
+#include <string.h> // kv≈Øli strcmp();
+#include <ctype.h>  // kv≈Øli isspace();
+#include <math.h>   // pro konstanty NAN a INFINITY
+#include <float.h>  // nezbytn√© pro DBL_DIG
 
-// Prototypy nÏkter˝ch funkcÌ
+// Prototypy nƒõkter√Ωch funkc√≠
 double check_log_base(double a);
-double calcNaturalLogarithm (double number, double eps);
+double calcNaturalLogarithm(double number, double eps);
 void print_result(double result);
 int check_sigdig(int sd);
-double calc_epsilon (int sigdig);
+double calc_epsilon(int sigdig);
 
 // konstanty
-const double IZP_E = 2.7182818284590452354;        // e
-const double IZP_PI = 3.14159265358979323846;      // pi
-const double IZP_2PI = 6.28318530717958647692;     // 2*pi
-const double IZP_PI_2 = 1.57079632679489661923;    // pi/2
-const double IZP_PI_4 = 0.78539816339744830962;    // pi/4
+const double IZP_E = 2.7182818284590452354;     // e
+const double IZP_PI = 3.14159265358979323846;   // pi
+const double IZP_2PI = 6.28318530717958647692;  // 2*pi
+const double IZP_PI_2 = 1.57079632679489661923; // pi/2
+const double IZP_PI_4 = 0.78539816339744830962; // pi/4
 
-// StavovÈ kÛdy
-enum state {
-   S_HELP,     // 0
-   S_TANH,     // 1
-   S_LOGAX,    // 2
-   S_WAM,      // 3
-   S_WQM,      // 4
+// Stavov√© k√≥dy
+enum state
+{
+   S_HELP,  // 0
+   S_TANH,  // 1
+   S_LOGAX, // 2
+   S_WAM,   // 3
+   S_WQM,   // 4
 };
 
-enum e_code {
-   E_OK,          // 0
+enum e_code
+{
+   E_OK, // 0
    E_WRONG_PARAM,
    E_UNKNOWN_ERROR,
 };
 
-// ChybovÈ zpr·vy
+// Chybov√© zpr√°vy
 const char *E_MSG[] = {
-	"\nVse je v poradku.\n",                                    // 0
-	"\nSpatny vstupni parametr.\n",                             // 1
-	"\nVyskytla se neocekavana chyba !\n",
+    "\nVse je v poradku.\n",        // 0
+    "\nSpatny vstupni parametr.\n", // 1
+    "\nVyskytla se neocekavana chyba !\n",
 };
 
-typedef struct params {
+typedef struct params
+{
    int state;
    int e_code;
    int sigdig;
    double base;
 } TParams, *p_params;
 
-typedef struct calc {
+typedef struct calc
+{
    double subtotal;
    double numerator;
    double denominator;
@@ -60,232 +64,266 @@ typedef struct calc {
 } TCalc, *p_calc;
 
 const char *HELPMSG =
-	"IZP - Projekt c. 2 - Projekt c. 2 - Iteracni vypocty\n"
-	"Autor: David Konar\n"
-	"E-mail: xkonar07@stud.fit.vutbr.cz\n"
-	"Pouziti:\n"
-		"\tproj2 -h\t spusti napovedu programu\n"
-		"\tproj2 -- wam\n"
-		"\tproj2 -- wqm\n"
-		"\tproj2 -- tanh sigdig\n"
-		"\tproj2 -- logax sigdig a\n"
-	"Popis parametr˘:\n"
-	      "\tproj2 -h\t spusti napovedu programu\n\n"
-      "\tproj2 -- wam\n\tProgram nacita ze vstupu hodnoty 'x1 h1' pro vypocet vazeneho aritmetckeho pr˘meru\n\n"
-      "\tproj2 -- wqm\n\tProgram nacita ze vstupu hodnoty 'x1 h1' pro vypocet vazeneho kvadratickeho pr˘meru\n\n"
-      "\tproj2 -- tanh sigdig\n\tProgram pozaduje jako dalsi parametr pocet platnych cislic [sigdig] na kolik ma byt "
-      "vypocet presny (rozsah je <1; DBL_DIB>). Nasledujici vstupni hodnoty jsou podle techto parametr˘ "
-      "zpracovany ve vystup\n\n"
-      "\tproj2 -- logax sigdig a\n\tProgram pozaduje 2 dalsi parametry. Pocet platnych cislic [sigdig] na kolik ma byt "
-      "vypocet presny (rozsah je <1; DBL_DIB>) a dale zaklad logaritmu [a]. Nasledne nactene vstupni hodnoty jsou podle "
-      "techto parametr˘ zpracovany ve vystup\n\n"
-;
+    "IZP - Projekt c. 2 - Projekt c. 2 - Iteracni vypocty\n"
+    "Autor: David Konar\n"
+    "E-mail: xkonar07@stud.fit.vutbr.cz\n"
+    "Pouziti:\n"
+    "\tproj2 -h\t spusti napovedu programu\n"
+    "\tproj2 -- wam\n"
+    "\tproj2 -- wqm\n"
+    "\tproj2 -- tanh sigdig\n"
+    "\tproj2 -- logax sigdig a\n"
+    "Popis parametr≈Ø:\n"
+    "\tproj2 -h\t spusti napovedu programu\n\n"
+    "\tproj2 -- wam\n\tProgram nacita ze vstupu hodnoty 'x1 h1' pro vypocet vazeneho aritmetckeho pr≈Ømeru\n\n"
+    "\tproj2 -- wqm\n\tProgram nacita ze vstupu hodnoty 'x1 h1' pro vypocet vazeneho kvadratickeho pr≈Ømeru\n\n"
+    "\tproj2 -- tanh sigdig\n\tProgram pozaduje jako dalsi parametr pocet platnych cislic [sigdig] na kolik ma byt "
+    "vypocet presny (rozsah je <1; DBL_DIB>). Nasledujici vstupni hodnoty jsou podle techto parametr≈Ø "
+    "zpracovany ve vystup\n\n"
+    "\tproj2 -- logax sigdig a\n\tProgram pozaduje 2 dalsi parametry. Pocet platnych cislic [sigdig] na kolik ma byt "
+    "vypocet presny (rozsah je <1; DBL_DIB>) a dale zaklad logaritmu [a]. Nasledne nactene vstupni hodnoty jsou podle "
+    "techto parametr≈Ø zpracovany ve vystup\n\n";
 
 /*************************************************************************************************/
-// DEKLARACE FUNKCÕ
+// DEKLARACE FUNKC√ç
 /*************************************************************************************************/
 ////////////////////////////
-// Funkce oπet¯ujÌcÌ meznÌ hodnoty
+// Funkce oƒÖet≈ôuj√≠c√≠ mezn√≠ hodnoty
 ////////////////////////////
 
-double meanExtremValues (TCalc *p_calc) {
+double meanExtremValues(TCalc *p_calc)
+{
    double result;
-   if ((p_calc->num == INFINITY) || (p_calc->weigh == INFINITY)) {
+   if ((p_calc->num == INFINITY) || (p_calc->weigh == INFINITY))
+   {
       result = INFINITY;
-         if (p_calc->num == INFINITY && p_calc->weigh == INFINITY) {
-            result = NAN;
-         }
-   }
-   else {
-      result = NAN;
-   }
-return result;
-}
-
-double tanhExtremValues (TCalc *p_calc) { // oπet¯uje stavy num = INF|-INF nebo hodnoty < -100 a > 100
-   double result;
-   if (p_calc->num == NAN) {
-      result = NAN;
-   }
-   else if (p_calc->num == INFINITY) {
-      result = 1;
-   }
-   else if(p_calc->num == -INFINITY) {
-      result = -1;
-   }
-   else if(p_calc->num > 0) {
-   result = 1;
-   }
-   else {
-   result = -1;
-   }
-return result;
-}
-
-double logExtremValues (TCalc *p_calc) {  // oπet¯uje vstupy INF, - INF, NAN, 0 a z·pornÈ vstupy
-   double result;
-   if (p_calc->num == NAN || p_calc->num < 0) { // z·klad logaritmu > 1
+      if (p_calc->num == INFINITY && p_calc->weigh == INFINITY)
+      {
          result = NAN;
       }
-   else if (p_calc->base > 1) { // z·klad logaritmu > 1
-      if(p_calc->num == INFINITY || p_calc->num == -INFINITY)
+   }
+   else
+   {
+      result = NAN;
+   }
+   return result;
+}
+
+double tanhExtremValues(TCalc *p_calc)
+{ // oƒÖet≈ôuje stavy num = INF|-INF nebo hodnoty < -100 a > 100
+   double result;
+   if (p_calc->num == NAN)
+   {
+      result = NAN;
+   }
+   else if (p_calc->num == INFINITY)
+   {
+      result = 1;
+   }
+   else if (p_calc->num == -INFINITY)
+   {
+      result = -1;
+   }
+   else if (p_calc->num > 0)
+   {
+      result = 1;
+   }
+   else
+   {
+      result = -1;
+   }
+   return result;
+}
+
+double logExtremValues(TCalc *p_calc)
+{ // oƒÖet≈ôuje vstupy INF, - INF, NAN, 0 a z√°porn√© vstupy
+   double result;
+   if (p_calc->num == NAN || p_calc->num < 0)
+   { // z√°klad logaritmu > 1
+      result = NAN;
+   }
+   else if (p_calc->base > 1)
+   { // z√°klad logaritmu > 1
+      if (p_calc->num == INFINITY || p_calc->num == -INFINITY)
          result = INFINITY;
-      else  // p¯Ìpad, kdy num = 0
+      else // p≈ô√≠pad, kdy num = 0
          result = -INFINITY;
-      }
-   else {   // z·klad logaritmu < 1
-      if(p_calc->num == INFINITY || p_calc->num == -INFINITY)
+   }
+   else
+   { // z√°klad logaritmu < 1
+      if (p_calc->num == INFINITY || p_calc->num == -INFINITY)
          result = -INFINITY;
       else
          result = INFINITY;
    }
-return result;
+   return result;
 }
 
 ////////////////////////////
-// InicializaËnÌ funkce
+// Inicializaƒçn√≠ funkce
 ////////////////////////////
 
-TCalc initCalc(TParams *p) {  // inicializace p¯i spuπtÏnÈ main(); nastavÌ 0 a hodnoty podle parametr˘
+TCalc initCalc(TParams *p)
+{ // inicializace p≈ôi spuƒÖtƒõn√© main(); nastav√≠ 0 a hodnoty podle parametr≈Ø
    TCalc calc = {
-   .subtotal = 0,
-   .numerator = 0,
-   .denominator = 0,
-   .num = 0,
-   .weigh = 0,
-   .eps = calc_epsilon(p->sigdig),
-   .base = p->base,
-   .sign = -1,
+       .subtotal = 0,
+       .numerator = 0,
+       .denominator = 0,
+       .num = 0,
+       .weigh = 0,
+       .eps = calc_epsilon(p->sigdig),
+       .base = p->base,
+       .sign = -1,
    };
-return calc;
+   return calc;
 }
 
-TParams getParams(int argc, char *argv[]) {  //zpracov·nÌ vstupnÌch parametr˘ a vyhodnocenÌ
-   TParams tester = {   // Inicializace struktury; defaultnÌ hodnoty
-      .state = S_HELP,
-      .e_code = E_OK,
-      .sigdig = 0,
-      .base = 0,
+TParams getParams(int argc, char *argv[])
+{ //zpracov√°n√≠ vstupn√≠ch parametr≈Ø a vyhodnocen√≠
+   TParams tester = {
+       // Inicializace struktury; defaultn√≠ hodnoty
+       .state = S_HELP,
+       .e_code = E_OK,
+       .sigdig = 0,
+       .base = 0,
    };
 
-   if(argc == 2) {
-      if(strcmp("-h", argv[1]) == 0) {
+   if (argc == 2)
+   {
+      if (strcmp("-h", argv[1]) == 0)
+      {
          tester.state = S_HELP;
       }
-      else if (strcmp(argv[1], "--wam") == 0) {
+      else if (strcmp(argv[1], "--wam") == 0)
+      {
          tester.state = S_WAM;
       }
-      else if (strcmp(argv[1],"--wqm") == 0) {
+      else if (strcmp(argv[1], "--wqm") == 0)
+      {
          tester.state = S_WQM;
       }
-      else {
+      else
+      {
          tester.e_code = E_WRONG_PARAM;
       }
    }
-   else if(argc == 3 && (strcmp(argv[1], "--tanh") == 0)) {
-      int q = trunc(atoi(argv[2])); // p¯evede vstup na INT a pak p¯ÌpadnÏ zaokrouhlÌ
+   else if (argc == 3 && (strcmp(argv[1], "--tanh") == 0))
+   {
+      int q = trunc(atoi(argv[2]));    // p≈ôevede vstup na INT a pak p≈ô√≠padnƒõ zaokrouhl√≠
       tester.sigdig = check_sigdig(q); // kontrola rozsahu sigdig
-      if(tester.sigdig) {
+      if (tester.sigdig)
+      {
          tester.state = S_TANH;
       }
       else
          tester.e_code = E_WRONG_PARAM;
    }
-   else if(argc == 4 && (strcmp(argv[1], "--logax") == 0)) {
-      int q = trunc(atoi(argv[2])); // p¯evede vstup na INT a pak p¯ÌpadnÏ zaokrouhlÌ
-      tester.sigdig = check_sigdig(q); // kontrola rozsahu sigdig
-      tester.base = check_log_base(strtod(argv[3], NULL));  // musÌ se p¯etypovat na float; jinak se poËÌt· typ char
+   else if (argc == 4 && (strcmp(argv[1], "--logax") == 0))
+   {
+      int q = trunc(atoi(argv[2]));                        // p≈ôevede vstup na INT a pak p≈ô√≠padnƒõ zaokrouhl√≠
+      tester.sigdig = check_sigdig(q);                     // kontrola rozsahu sigdig
+      tester.base = check_log_base(strtod(argv[3], NULL)); // mus√≠ se p≈ôetypovat na float; jinak se poƒç√≠t√° typ char
 
-      if(tester.sigdig && tester.base) {
+      if (tester.sigdig && tester.base)
+      {
          tester.state = S_LOGAX;
       }
-      else {
+      else
+      {
          tester.e_code = E_WRONG_PARAM;
       }
    }
    else
       tester.e_code = E_WRONG_PARAM;
-return tester;
+   return tester;
 }
 
 ////////////////////////////
-// V˝poËetnÌ funkce
+// V√Ωpoƒçetn√≠ funkce
 ////////////////////////////
 
-double calc_sinh (double num, double eps) {  // v˝poËet hyperbolickÈho sin(x)
+double calc_sinh(double num, double eps)
+{ // v√Ωpoƒçet hyperbolick√©ho sin(x)
    double result, term;
    int counter;
    double squared2 = num * num;
    double fact;
    double result_old;
 
-   term = num;		// 1. Ëlen
+   term = num; // 1. ƒçlen
    result = num;
    counter = 1;
 
-   do {
+   do
+   {
       result_old = result;
-      fact = 2*counter;
-      term = (term * squared2)/((fact+1)*fact);
+      fact = 2 * counter;
+      term = (term * squared2) / ((fact + 1) * fact);
       result += term;
       counter++;
-   } while ((fabs(result_old - result)) > fabs(eps*result));
-return result;
+   } while ((fabs(result_old - result)) > fabs(eps * result));
+   return result;
 }
 
-double calc_cosh (double num, double eps) {  // v˝poËet hyperbolick˝ cos(x)
+double calc_cosh(double num, double eps)
+{ // v√Ωpoƒçet hyperbolick√Ω cos(x)
    double result, term;
    int counter;
-   double squared2 = num * num;		// dop¯edu vypoËÌtanÈ x^2 aby jsem to pokaædÈ nemusel poËÌtat
+   double squared2 = num * num; // dop≈ôedu vypoƒç√≠tan√© x^2 aby jsem to pokaƒæd√© nemusel poƒç√≠tat
    double fact;
    double result_old;
 
-   term = 1;		// 1. Ëlen
+   term = 1; // 1. ƒçlen
    result = 1;
    result_old = 0;
    counter = 1;
 
-   do {
+   do
+   {
       result_old = result;
-      fact = 2*counter;
-      term = (term * squared2)/(fact*(fact-1));
+      fact = 2 * counter;
+      term = (term * squared2) / (fact * (fact - 1));
       result += term;
       counter++;
-   } while ((fabs(result_old - result) > eps*result));
-return result;
+   } while ((fabs(result_old - result) > eps * result));
+   return result;
 }
 
-double calc_epsilon (int sigdig) {  // p¯evod sigding -> epsilon
+double calc_epsilon(int sigdig)
+{ // p≈ôevod sigding -> epsilon
    int i;
    double epsilon = 0.1;
-   //epsilon = pow(0.1, sigdig+1);  // m˘æe se pouæÌvat ???
-   for (i = 0; i <= sigdig+2; i++)	// p¯id·no +2 - projistotu aby se neprojevila odchylka p¯i dÏlenÌ do platn˝ch ËÌslic !
-      epsilon = epsilon*0.1;
+   //epsilon = pow(0.1, sigdig+1);  // m≈Øƒæe se pouƒæ√≠vat ???
+   for (i = 0; i <= sigdig + 2; i++) // p≈ôid√°no +2 - projistotu aby se neprojevila odchylka p≈ôi dƒõlen√≠ do platn√Ωch ƒç√≠slic !
+      epsilon = epsilon * 0.1;
 
-return epsilon;
+   return epsilon;
 }
 
-double calc_wam(TCalc *p_calc) { // v˝poËet v·æenÈho aritmetickÈho pr˘mÏru
+double calc_wam(TCalc *p_calc)
+{ // v√Ωpoƒçet v√°ƒæen√©ho aritmetick√©ho pr≈Ømƒõru
    double output = 0;
 
-   p_calc->numerator += (p_calc->num * p_calc->weigh);	// meziv˝poËty (Ëitatel, jmenovatel) ukl·d·m do struktury a potÈ s tnÌm znovu poËÌt·m
+   p_calc->numerator += (p_calc->num * p_calc->weigh); // meziv√Ωpoƒçty (ƒçitatel, jmenovatel) ukl√°d√°m do struktury a pot√© s tn√≠m znovu poƒç√≠t√°m
    p_calc->denominator += p_calc->weigh;
    output = p_calc->numerator / p_calc->denominator;
 
-return output;
+   return output;
 }
 
-double calc_wqm(TCalc *p_calc) {    // v˝poËet v·æen˝ kvadratick˝ pr˘mÏr
+double calc_wqm(TCalc *p_calc)
+{ // v√Ωpoƒçet v√°ƒæen√Ω kvadratick√Ω pr≈Ømƒõr
    double output = 0;
 
-   p_calc->numerator += ((p_calc->num*p_calc->num) * p_calc->weigh);		// meziv˝poËty (Ëitatel, jmenovatel) ukl·d·m do struktury a potÈ s tnÌm znovu poËÌt·m
+   p_calc->numerator += ((p_calc->num * p_calc->num) * p_calc->weigh); // meziv√Ωpoƒçty (ƒçitatel, jmenovatel) ukl√°d√°m do struktury a pot√© s tn√≠m znovu poƒç√≠t√°m
    p_calc->denominator += p_calc->weigh;
    output = sqrt(p_calc->numerator / p_calc->denominator);
 
-return output;
+   return output;
 }
 
-double calcNaturalLogarithm (double number, double eps) {   // v˝poËet p¯irozenÈho logaritmu
+double calcNaturalLogarithm(double number, double eps)
+{ // v√Ωpoƒçet p≈ôirozen√©ho logaritmu
 
    double term = 0;
    double result = 0;
@@ -295,93 +333,108 @@ double calcNaturalLogarithm (double number, double eps) {   // v˝poËet p¯irozenÈ
    double mult;
    double y = 0;
 
-	for (divided = 0; number > IZP_E; divided++) {		 // zmenseni vstupniho cisla delenim eulorovou konstantou
-         number /= IZP_E;
-	}
-	y = (number - 1)/(number + 1);	// definice 1. Ëlen rozvoje
-	term = y;
-	mult = y*y;
-	//power = pow(y,2);
-	numerator = term;
-	result = 2*y;
-	counter = 3;
-	do {
-		result_old = result;
-		numerator = numerator*mult;
-		term = term + ((numerator)/counter);
-		result = 2*term;
-		counter = counter + 2;
-	} while (fabs(result_old - result) > fabs(eps*result));	// porovn·nÌ jestli bylo dosaæeno poæadovanÈ p¯esnosti
+   for (divided = 0; number > IZP_E; divided++)
+   { // zmenseni vstupniho cisla delenim eulorovou konstantou
+      number /= IZP_E;
+   }
+   y = (number - 1) / (number + 1); // definice 1. ƒçlen rozvoje
+   term = y;
+   mult = y * y;
+   //power = pow(y,2);
+   numerator = term;
+   result = 2 * y;
+   counter = 3;
+   do
+   {
+      result_old = result;
+      numerator = numerator * mult;
+      term = term + ((numerator) / counter);
+      result = 2 * term;
+      counter = counter + 2;
+   } while (fabs(result_old - result) > fabs(eps * result)); // porovn√°n√≠ jestli bylo dosaƒæeno poƒæadovan√© p≈ôesnosti
 
-	result += divided;		 // p¯iËÌst poËet vydÏlenÌ p˘vodnÌho ËÌsla E-Ëkem, protoæe ln(e) = 1
-return result;
+   result += divided; // p≈ôiƒç√≠st poƒçet vydƒõlen√≠ p≈Øvodn√≠ho ƒç√≠sla E-ƒçkem, protoƒæe ln(e) = 1
+   return result;
 }
 
 ////////////////////////////
-// KontrolnÌ funkce
+// Kontroln√≠ funkce
 ////////////////////////////
 
-int check_sigdig(int sd) { // zkontroluje platnost sigdig <1; DBL_DIG>
-   if(sd > DBL_DIG || sd < 1)
+int check_sigdig(int sd)
+{ // zkontroluje platnost sigdig <1; DBL_DIG>
+   if (sd > DBL_DIG || sd < 1)
       sd = 0;
-return sd;
+   return sd;
 }
 
-double check_log_base(double base) {   // zkontroluje validnost sigdig internval "R+ / {1}"
-   if(base <= 0 || base == 1)
+double check_log_base(double base)
+{ // zkontroluje validnost sigdig internval "R+ / {1}"
+   if (base <= 0 || base == 1)
       base = 0;
-return base;
+   return base;
 }
 
-double check_weigh(double num) {    // kontroluje platnost v·hy pr˘mÏru
-   if(num < 0) // v·ha leæÌ v intervalu <0; +inf)
+double check_weigh(double num)
+{               // kontroluje platnost v√°hy pr≈Ømƒõru
+   if (num < 0) // v√°ha leƒæ√≠ v intervalu <0; +inf)
       num = NAN;
-return num;
+   return num;
 }
 
-double checkEntry (double input_value, int q) {		// kontroluje vstupnÌ data (jestli se opravdu jen jedna o ËÌsla)
-		int c;
+double checkEntry(double input_value, int q)
+{ // kontroluje vstupn√≠ data (jestli se opravdu jen jedna o ƒç√≠sla)
+   int c;
 
-      c = getchar();    // naËÌt· dalπÌ 1. znak po ËÌsle (slouæÌ pro kontrolu platnosti vstupu)
-      if (q == 1 && (isspace(c) || c == EOF)) {;}  // jestliæe byl vstup ËÌslo a n·sledovala mezera/EOF => vπe OK
-      else {   // chyba ! na vstupu nebylo ËÌslo => nastav na NaN
-			if (c != isspace(c))
-				ungetc(c, stdin); // musÌm vr·tit zpÏt do bufferu aby to mohl p¯eËÌst scanf("%*s"), bo v p¯ÌpadÏ, æe by po ËÌsle byl jen 1 znak,
-										//tak by scanf p¯eskoËil dalπÌ vstup !
-         q = scanf("%*s");
-         input_value = NAN;
-      }
-return input_value;
+   c = getchar(); // naƒç√≠t√° dalƒÖ√≠ 1. znak po ƒç√≠sle (slouƒæ√≠ pro kontrolu platnosti vstupu)
+   if (q == 1 && (isspace(c) || c == EOF))
+   {
+      ;
+   } // jestliƒæe byl vstup ƒç√≠slo a n√°sledovala mezera/EOF => vƒÖe OK
+   else
+   { // chyba ! na vstupu nebylo ƒç√≠slo => nastav na NaN
+      if (c != isspace(c))
+         ungetc(c, stdin); // mus√≠m vr√°tit zpƒõt do bufferu aby to mohl p≈ôeƒç√≠st scanf("%*s"), bo v p≈ô√≠padƒõ, ƒæe by po ƒç√≠sle byl jen 1 znak,
+                           //tak by scanf p≈ôeskoƒçil dalƒÖ√≠ vstup !
+      q = scanf("%*s");
+      input_value = NAN;
+   }
+   return input_value;
 }
 
 ////////////////////////////
-// Funkce zajiπªujÌcÌ provedenÌ poæadovanÈ operace
+// Funkce zajiƒÖ¬ªuj√≠c√≠ proveden√≠ poƒæadovan√© operace
 ////////////////////////////
 
-void mean_procedure (TCalc *p_calc, int average) { // funkce obhospoda¯uje v˝poËet pr˘mÏr˘
+void mean_procedure(TCalc *p_calc, int average)
+{ // funkce obhospoda≈ôuje v√Ωpoƒçet pr≈Ømƒõr≈Ø
    double result;
-   if (p_calc->num == INFINITY || p_calc->weigh == INFINITY) {
+   if (p_calc->num == INFINITY || p_calc->weigh == INFINITY)
+   {
       result = meanExtremValues(p_calc);
    }
-   else {
-   if(average == S_WAM)
-      result = calc_wam(p_calc);
-   else if (average == S_WQM)
-      result = calc_wqm(p_calc);
    else
-      result = 7315;
+   {
+      if (average == S_WAM)
+         result = calc_wam(p_calc);
+      else if (average == S_WQM)
+         result = calc_wqm(p_calc);
+      else
+         result = 7315;
    }
    print_result(result);
 }
 
-void tanh_procedure(TCalc *p_calc) {   // funkce obhospoda¯uje v˝poËet tanh(x)
+void tanh_procedure(TCalc *p_calc)
+{ // funkce obhospoda≈ôuje v√Ωpoƒçet tanh(x)
    double result;
    double sin;
    double cos;
 
-   if(p_calc->num > 100 ||  p_calc->num < -100 || p_calc->num == NAN)
+   if (p_calc->num > 100 || p_calc->num < -100 || p_calc->num == NAN)
       result = tanhExtremValues(p_calc);
-   else {
+   else
+   {
       sin = calc_sinh(p_calc->num, p_calc->eps);
       cos = calc_cosh(p_calc->num, p_calc->eps);
       result = sin / cos;
@@ -389,14 +442,16 @@ void tanh_procedure(TCalc *p_calc) {   // funkce obhospoda¯uje v˝poËet tanh(x)
    print_result(result);
 }
 
-void logax_procedure (TCalc *p_calc) { // funkce obhospoda¯uje v˝poËet log(a, x) [v˝poËty p¯es ln(x)]
+void logax_procedure(TCalc *p_calc)
+{ // funkce obhospoda≈ôuje v√Ωpoƒçet log(a, x) [v√Ωpoƒçty p≈ôes ln(x)]
    double result;
    double lnX, lnA;
 
-    if(p_calc->num == INFINITY ||  p_calc->num == -INFINITY || p_calc->num <= 0 || p_calc->num == NAN)
+   if (p_calc->num == INFINITY || p_calc->num == -INFINITY || p_calc->num <= 0 || p_calc->num == NAN)
       result = logExtremValues(p_calc);
-   else {
-		//optimizeFraction(p_calc);
+   else
+   {
+      //optimizeFraction(p_calc);
       lnX = calcNaturalLogarithm(p_calc->num, p_calc->eps);
       lnA = calcNaturalLogarithm(p_calc->base, p_calc->eps);
       result = lnX / lnA;
@@ -405,23 +460,26 @@ void logax_procedure (TCalc *p_calc) { // funkce obhospoda¯uje v˝poËet log(a, x)
 }
 
 ////////////////////////////
-// DalπÌ podp˘rnÈ funkce
+// DalƒÖ√≠ podp≈Ørn√© funkce
 ////////////////////////////
 
-void end_of_mean() {// kontroluje jestli p¯i v˝poËtu pr˘mÏr˘ bylo zachov·n pomÏr hodnota:v·ha a nenÌ lich˝ poËet ËÌslic
+void end_of_mean()
+{ // kontroluje jestli p≈ôi v√Ωpoƒçtu pr≈Ømƒõr≈Ø bylo zachov√°n pomƒõr hodnota:v√°ha a nen√≠ lich√Ω poƒçet ƒç√≠slic
    double result = NAN;
    print_result(result);
 }
 
-void print_result(double result) {
+void print_result(double result)
+{
    printf("%.10e\n", result);
 }
 
-void print_error(int ecode) { // tiskne chybovÈ hl·πenÌ
+void print_error(int ecode)
+{ // tiskne chybov√© hl√°ƒÖen√≠
    fprintf(stderr, "%s", E_MSG[ecode]);
 }
 /*************************************************************************************************/
-// HLAVNÕ TÃLO PROGRAMU
+// HLAVN√ç TƒöLO PROGRAMU
 /*************************************************************************************************/
 
 int main(int argc, char *argv[])
@@ -429,24 +487,29 @@ int main(int argc, char *argv[])
    double input_value = 0;
    int i = 0, q = 0;
 
-   TParams params = getParams(argc, argv);   // zpracov·nÌ parametr˘
-   TParams *p_params = &params;  // ukazatel na strukturu
-   if (params.e_code != 0) {   // jestliæe se vyskytla chyba -> schluss
+   TParams params = getParams(argc, argv); // zpracov√°n√≠ parametr≈Ø
+   TParams *p_params = &params;            // ukazatel na strukturu
+   if (params.e_code != 0)
+   { // jestliƒæe se vyskytla chyba -> schluss
       print_error(params.e_code);
       return EXIT_FAILURE;
    }
-   if (params.state == S_HELP) {
+   if (params.state == S_HELP)
+   {
       printf("%s", HELPMSG);
       return EXIT_SUCCESS;
    }
 
-   TCalc calc = initCalc(p_params); // inicializace pomocnÈ struktury a p¯ed·nÌ vstupnÌch parametr˘
+   TCalc calc = initCalc(p_params); // inicializace pomocn√© struktury a p≈ôed√°n√≠ vstupn√≠ch parametr≈Ø
    TCalc *p_calc = &calc;
 
-   while((q = scanf("%lf", &input_value)) != EOF) {   // Ëte ËÌseln˝ vstup
-		input_value = checkEntry(input_value, q);
-      if(params.state == S_WAM) {
-         if(i % 2 == 0) {  // prvnÌ vstup je ËÌslo, dalπÌ je v·ha; aæ pak zaËni poËÌtat pr˘mÏr
+   while ((q = scanf("%lf", &input_value)) != EOF)
+   { // ƒçte ƒç√≠seln√Ω vstup
+      input_value = checkEntry(input_value, q);
+      if (params.state == S_WAM)
+      {
+         if (i % 2 == 0)
+         { // prvn√≠ vstup je ƒç√≠slo, dalƒÖ√≠ je v√°ha; aƒæ pak zaƒçni poƒç√≠tat pr≈Ømƒõr
             calc.num = input_value;
             i++;
             continue;
@@ -455,8 +518,10 @@ int main(int argc, char *argv[])
          i++;
          mean_procedure(p_calc, p_params->state);
       }
-      else if(params.state == S_WQM) {
-         if(i % 2 == 0) {  // prvnÌ vstup je ËÌslo, dalπÌ je v·ha; aæ pak zaËni poËÌtat pr˘mÏr
+      else if (params.state == S_WQM)
+      {
+         if (i % 2 == 0)
+         { // prvn√≠ vstup je ƒç√≠slo, dalƒÖ√≠ je v√°ha; aƒæ pak zaƒçni poƒç√≠tat pr≈Ømƒõr
             calc.num = input_value;
             i++;
             continue;
@@ -465,21 +530,24 @@ int main(int argc, char *argv[])
          i++;
          mean_procedure(p_calc, p_params->state);
       }
-      else if(params.state == S_TANH) {
+      else if (params.state == S_TANH)
+      {
          calc.num = input_value;
-			tanh_procedure(p_calc);
+         tanh_procedure(p_calc);
       }
-      else if(params.state == S_LOGAX) {
+      else if (params.state == S_LOGAX)
+      {
          calc.num = input_value;
          logax_procedure(p_calc);
       }
-      else {
+      else
+      {
          print_error(params.e_code = E_UNKNOWN_ERROR);
          return EXIT_FAILURE;
       }
    }
-   if (i % 2 != 0)   // ne˙pln˝ vstup p¯i v˝poËtu pr˘mÏr˘ (vypiπ NaN)
+   if (i % 2 != 0) // ne√∫pln√Ω vstup p≈ôi v√Ωpoƒçtu pr≈Ømƒõr≈Ø (vypiƒÖ NaN)
       end_of_mean();
 
-return EXIT_SUCCESS;
+   return EXIT_SUCCESS;
 }
